@@ -6,7 +6,9 @@ module MyLib where
 -- Realistically I would:
 --     - use lens to make nested updates cleaner
 --     - use a relational database instead of Map, to maintain denormalization,
---       interface with external data, etc.
+--       interface with external data, etc. I'm REALLY a fan of relational DB for tasks like this.
+--       For anything except the simplest examples it quickly pays itself back in terms of
+--       constraint enforcement, data integrity, and ad-hoc queryability.
 --     - use a proper effects system instead of just the maybe monad so that:
 --        - meaningful error messages can be returned (interleaving either with maybe for errors is annoying)
 --        - code for database access can be included simply without clutter or stray IO
@@ -24,20 +26,22 @@ import Data.ISBN.Types (ISBN(..))
 
 deriving instance Ord ISBN
 
-newtype Author = Author Text
-    deriving (Show,Eq)
+-- | Metadata for an author (TODO: could be more)
+newtype Author = Author Text deriving (Show,Eq)
 
-data Book = Book { title :: Text, author :: Author, isbn :: ISBN }
-  deriving (Show, Eq)
+-- | metadata for a book.
+data Book = Book { title :: Text, author :: Author, isbn :: ISBN } deriving (Show, Eq)
 
-newtype LibraryCardNum = LibraryCardNum Text
-    deriving (Show,Eq,Ord)
+-- | A unique identifier for patrons membership.
+newtype LibraryCardNum = LibraryCardNum Text deriving (Show,Eq,Ord)
 
 data Patron = Patron { name :: Text, libraryCard :: LibraryCardNum, primaryBranch :: Branch }
   deriving (Show, Eq)
 
+-- | The name of a branch of the library.
 newtype Branch = Branch Text deriving (Show,Eq,Ord)
 
+-- | The record of books checked out by patrons.
 type PatronBooks = Map LibraryCardNum (Map (ISBN, Branch) Word)
 
 -- | Library is a record of available books and books checked out by patrons
