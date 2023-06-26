@@ -108,13 +108,21 @@ examplePatron :: Patron
 examplePatron = Patron { name = "John Doe", libraryCard = exampleCardNum }
 exampleCardNum = LibraryCardNum "1234567890"
 
+-- | Transfer from b1 to b2
+transferBook :: ISBN -> Branch -> Branch -> Library -> Maybe Library
+transferBook isbn b1 b2 lib = do
+  _ <- M.lookup isbn (knownBooks lib) -- check that the book is known
+  availableBooks' <- unstock (isbn,b1) (availableBooks lib)
+  pure $ lib { availableBooks = M.alter (Just . maybe 1 (+1)) (isbn,b2) availableBooks' }
+
 exampleLib :: Library
 exampleLib = case (do
   let l1 = registerPatron examplePatron emptyLib
   l2 <- addBook exampleBook (Branch "1") l1
-  l3 <- addBook exampleBook (Branch "1") l2
+  l3 <- addBook exampleBook (Branch "2") l2
   l4 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l3
-  l5 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l4
-  l6 <- returnBook exampleISBN (Branch "1") exampleCardNum l5
-  Just l6) of Just l -> l
+  l5 <- transferBook exampleISBN (Branch "2") (Branch "1") l4
+  l6 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l5
+  l7 <- returnBook exampleISBN (Branch "1") exampleCardNum l6
+  Just l7) of Just l -> l
 
