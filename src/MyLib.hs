@@ -27,7 +27,7 @@ data Book = Book { title :: Text, author :: Author, isbn :: ISBN }
 newtype LibraryCardNum = LibraryCardNum Text
     deriving (Show,Eq,Ord)
 
-data Patron = Patron { name :: Text, libraryCard :: LibraryCardNum}
+data Patron = Patron { name :: Text, libraryCard :: LibraryCardNum, primaryBranch :: Branch }
   deriving (Show, Eq)
 
 newtype Branch = Branch Text deriving (Show,Eq,Ord)
@@ -93,6 +93,15 @@ checkoutBook isbn branch cardNum lib = do
              , checkedOutBooks = M.alter (Just . maybe (M.singleton (isbn,branch) 1) (M.adjust (+1) (isbn,branch))) cardNum (checkedOutBooks lib)
              }
 
+checkoutBookPrimaryBranch :: ISBN -> LibraryCardNum -> Library -> Maybe Library
+checkoutBookPrimaryBranch isbn cardNum lib = do
+  patron <- M.lookup cardNum (patrons lib)
+  checkoutBook isbn (primaryBranch patron) cardNum lib
+returnBookPrimaryBranch :: ISBN -> LibraryCardNum -> Library -> Maybe Library
+returnBookPrimaryBranch isbn cardNum lib = do
+  patron <- M.lookup cardNum (patrons lib)
+  returnBook isbn (primaryBranch patron) cardNum lib
+
 returnBook :: ISBN -> Branch -> LibraryCardNum -> Library -> Maybe Library
 returnBook isbn branch cardNum lib = do
   _ <- M.lookup isbn (knownBooks lib) -- check that the book is known
@@ -105,7 +114,7 @@ returnBook isbn branch cardNum lib = do
 
 
 examplePatron :: Patron
-examplePatron = Patron { name = "John Doe", libraryCard = exampleCardNum }
+examplePatron = Patron { name = "John Doe", libraryCard = exampleCardNum , primaryBranch = Branch "1"}
 exampleCardNum = LibraryCardNum "1234567890"
 
 -- | Transfer from b1 to b2
@@ -120,9 +129,9 @@ exampleLib = case (do
   let l1 = registerPatron examplePatron emptyLib
   l2 <- addBook exampleBook (Branch "1") l1
   l3 <- addBook exampleBook (Branch "2") l2
-  l4 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l3
+  l4 <- checkoutBookPrimaryBranch exampleISBN exampleCardNum l3
   l5 <- transferBook exampleISBN (Branch "2") (Branch "1") l4
-  l6 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l5
-  l7 <- returnBook exampleISBN (Branch "1") exampleCardNum l6
+  l6 <- checkoutBookPrimaryBranch exampleISBN exampleCardNum l5
+  l7 <- returnBookPrimaryBranch exampleISBN exampleCardNum l6
   Just l7) of Just l -> l
 
