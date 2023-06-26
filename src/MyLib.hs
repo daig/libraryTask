@@ -135,3 +135,16 @@ exampleLib = case (do
   l7 <- returnBookPrimaryBranch exampleISBN exampleCardNum l6
   Just l7) of Just l -> l
 
+
+-- reservation system:
+-- reservations are indistiguishable from removed books for the purpose of availability.
+-- if we also want to track inventory, we can simply add a seperate tracker for physical inventory,
+-- and a seperate tracker for "reservations" on patrons.
+-- adding a new method "reserve" which adds a reservation to a patron's reservation tracker, and removes availability from the library as normal, but without updating the inventory.
+
+
+-- book recommendation system:
+-- include a history of all book checkouts, not just the current state
+-- optionally, include a rating system for returned books.
+-- use this data to generate a recommendation (somehow) - exposed via a new function "recommendBook" which takes a patron and a library and returns an IO action for a book list.
+-- IO will need to be handled for this which will require a proper effects system.
