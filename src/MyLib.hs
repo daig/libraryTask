@@ -30,11 +30,13 @@ newtype LibraryCardNum = LibraryCardNum Text
 data Patron = Patron { name :: Text, libraryCard :: LibraryCardNum}
   deriving (Show, Eq)
 
-type PatronBooks = Map LibraryCardNum (Map ISBN Word)
+newtype Branch = Branch Text deriving (Show,Eq,Ord)
+
+type PatronBooks = Map LibraryCardNum (Map (ISBN, Branch) Word)
 
 -- | Library is a record of available books and books checked out by patrons
 data Library = Library {knownBooks :: Map ISBN Book
-                       ,availableBooks :: Map ISBN Word
+                       ,availableBooks :: Map (ISBN, Branch) Word
                        ,patrons :: Map LibraryCardNum Patron
                        ,checkedOutBooks :: PatronBooks}
     deriving (Show, Eq)
@@ -58,14 +60,14 @@ emptyLib = Library { knownBooks = M.empty, availableBooks = M.empty, patrons = M
 data BookMismatch = BookMismatch { expected :: Book, actual :: Book }
     deriving (Show, Eq)
 
-addBook :: Book -> Library -> Maybe Library
-addBook book lib
+addBook :: Book -> Branch -> Library -> Maybe Library
+addBook book branch lib
   = let registeredBook = M.lookup (isbn book) (knownBooks lib)
     in case registeredBook of
          Nothing -> Just $ stockBook (registerBook book lib)
          Just book' | book == book' -> Just $ stockBook lib -- already registered
                     | otherwise -> Nothing
-  where stockBook l = l {availableBooks = M.alter (Just . maybe 1 (+1)) (isbn book) (availableBooks l)}
+  where stockBook l = l {availableBooks = M.alter (Just . maybe 1 (+1)) (isbn book, branch) (availableBooks l)}
 
 -- | Decrement the number of available copies of a book or remove it if there would be none left.
 -- Fails if the book isn't available.
@@ -75,30 +77,30 @@ unstock isbn m = case M.lookup isbn m of
                      Just 1 -> Just $ M.delete isbn m
                      Just n -> Just $ M.insert isbn (n-1) m
 
-unstockBook :: ISBN -> Library -> Maybe Library
-unstockBook isbn lib = do
-  availableBooks' <- unstock isbn (availableBooks lib)
+unstockBook :: ISBN -> Branch -> Library -> Maybe Library
+unstockBook isbn branch lib = do
+  availableBooks' <- unstock (isbn,branch) (availableBooks lib)
   pure $ lib { availableBooks = availableBooks' }
 
 -- | Check out a book to a patron.
 -- Fails if the book isn't available or the patron doesn't exist.
-checkoutBook :: ISBN -> LibraryCardNum -> Library -> Maybe Library
-checkoutBook isbn cardNum lib = do
+checkoutBook :: ISBN -> Branch -> LibraryCardNum -> Library -> Maybe Library
+checkoutBook isbn branch cardNum lib = do
   _ <- M.lookup isbn (knownBooks lib) -- check that the book is known
   _ <- M.lookup cardNum (patrons lib) -- ceck that the patron is known
-  availableBooks' <- unstock isbn (availableBooks lib)
+  availableBooks' <- unstock (isbn,branch) (availableBooks lib)
   pure $ lib { availableBooks = availableBooks'
-             , checkedOutBooks = M.alter (Just . maybe (M.singleton isbn 1) (M.adjust (+1) isbn)) cardNum (checkedOutBooks lib)
+             , checkedOutBooks = M.alter (Just . maybe (M.singleton (isbn,branch) 1) (M.adjust (+1) (isbn,branch))) cardNum (checkedOutBooks lib)
              }
 
-returnBook :: ISBN -> LibraryCardNum -> Library -> Maybe Library
-returnBook isbn cardNum lib = do
+returnBook :: ISBN -> Branch -> LibraryCardNum -> Library -> Maybe Library
+returnBook isbn branch cardNum lib = do
   _ <- M.lookup isbn (knownBooks lib) -- check that the book is known
   _ <- M.lookup cardNum (patrons lib) -- ceck that the patron is known
   patronBooks <- M.lookup cardNum (checkedOutBooks lib)
-  patronBooks' <- unstock isbn patronBooks
+  patronBooks' <- unstock (isbn,branch) patronBooks
   pure $ lib { checkedOutBooks = M.insert cardNum patronBooks' (checkedOutBooks lib)
-             , availableBooks = M.alter (Just . maybe 1 (+1)) isbn (availableBooks lib)
+             , availableBooks = M.alter (Just . maybe 1 (+1)) (isbn,branch) (availableBooks lib)
              }
 
 
@@ -109,10 +111,10 @@ exampleCardNum = LibraryCardNum "1234567890"
 exampleLib :: Library
 exampleLib = case (do
   let l1 = registerPatron examplePatron emptyLib
-  l2 <- addBook exampleBook l1
-  l3 <- addBook exampleBook l2
-  l4 <- checkoutBook exampleISBN exampleCardNum l3
-  l5 <- checkoutBook exampleISBN exampleCardNum l4
-  l6 <- returnBook exampleISBN exampleCardNum l5
+  l2 <- addBook exampleBook (Branch "1") l1
+  l3 <- addBook exampleBook (Branch "1") l2
+  l4 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l3
+  l5 <- checkoutBook exampleISBN (Branch "1") exampleCardNum l4
+  l6 <- returnBook exampleISBN (Branch "1") exampleCardNum l5
   Just l6) of Just l -> l
 
