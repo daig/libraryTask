@@ -7,6 +7,12 @@ module MyLib where
 --     - use lens to make nested updates cleaner
 --     - use a relational database instead of Map, to maintain denormalization,
 --       interface with external data, etc.
+--     - use a proper effects system instead of just the maybe monad so that:
+--        - meaningful error messages can be returned (interleaving either with maybe for errors is annoying)
+--        - code for database access can be included simply without clutter or stray IO
+--        - logging for record keeping/audit trail etc. Also useful to reuse for the recommendation engine.
+--     - include a proper test suite, with property tests, etc. in eg doctest for the simple data
+--             and unit tests for the database accesses
 
 import Data.Map (Map)
 import Data.Map qualified as M
@@ -60,6 +66,7 @@ emptyLib = Library { knownBooks = M.empty, availableBooks = M.empty, patrons = M
 data BookMismatch = BookMismatch { expected :: Book, actual :: Book }
     deriving (Show, Eq)
 
+-- | Add a book to a branch's inventory - registering it (for convenience) if it's not already known.
 addBook :: Book -> Branch -> Library -> Maybe Library
 addBook book branch lib
   = let registeredBook = M.lookup (isbn book) (knownBooks lib)
